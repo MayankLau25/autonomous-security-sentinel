@@ -1,37 +1,40 @@
 from fastapi import FastAPI, APIRouter, HTTPException
-from src.models.schemas import ScanRequest, ScanResponse, SecurityMetadata
-from src.core.security_engine import SecurityEngine
+from pydantic import BaseModel
+from typing import Dict, Any, Optional
+from src.core.advanced_detectors import AdvancedDetectors
 
 app = FastAPI(
     title="Autonomous Security Sentinel",
     description="AI-native security framework for LLM interaction hardening.",
-    version="1.0.0"
+    version="2.0.0"
 )
 
-security_engine = SecurityEngine()
+# Initialize detectors
+advanced_detectors = AdvancedDetectors()
+
+class ValidationRequest(BaseModel):
+    prompt: str
+    response: str
 
 @app.get("/")
 async def root():
-    return {"message": "Autonomous Security Sentinel is active", "status": "healthy"}
+    return {
+        "message": "Autonomous Security Sentinel v2.0 is active",
+        "status": "healthy",
+        "features": ["hallucination_detection", "leakage_prevention", "pii_scrubbing"]
+    }
 
-@app.post("/api/v1/scan-prompt", response_model=ScanResponse)
-async def scan_prompt(request: ScanRequest):
+@app.post("/api/v2/validate-output")
+async def validate_output(request: ValidationRequest):
     """
-    Scans a user prompt for injection attacks and PII.
+    Validates LLM output for hallucinations and sensitive data leakage.
     """
     try:
-        response = await security_engine.analyze_prompt(request)
-        return response
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/v1/validate-code", response_model=SecurityMetadata)
-async def validate_code(code: str):
-    """
-    Scans AI-generated code for security vulnerabilities.
-    """
-    try:
-        return security_engine.validate_code_output(code)
+        results = advanced_detectors.analyze_output(request.prompt, request.response)
+        return {
+            "status": "success",
+            "results": results
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
